@@ -51,7 +51,6 @@ function pmprosp_password_strength_scripts_and_styles() {
 			'display_progressbar' => apply_filters( 'pmprosp_display_progressbar', true ),
 			'display_password_strength' => apply_filters( 'pmprosp_display_password_strength', true ),
 			'display_password_tooltip' => apply_filters( 'pmprosp_display_password_tooltip', true ),
-			'password_blacklist' => json_encode( apply_filters( 'pmprosp_password_blocklist', array( 'admin', 'administrator', '@dministrator', '@dmin', 'test', 'tester' ) ) ),
 		)
 	);
 }
