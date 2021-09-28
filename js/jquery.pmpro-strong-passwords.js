@@ -1,116 +1,24 @@
-/*
-// TODO: Allow Weak filter
-// TODO: detect width of password field and set progressbar width same
-// TODO: set pmprosp-progressbar-status box shadow width to larger than progressbar
-// TODO: Add password note as tooltip
-// TODO: On screen resize adjust progressbar + box-shadow widths 
-? Add additional checks for upper & lowercase, numbers and special characters and combine with strength check
-// TODO: Filter in blacklist array
-?: Mismatch styling?
-?: Hide and autofill confirm password field?
-?: Add toggle show password?
-?: Generate Password + button?
-?: Auto Generate PW and show?
-*/
+/**
+ * PMPro Strong Passwords
+ */
 
+jQuery(document).ready(function(){ 
 
-var pmprosp_password_blacklist = JSON.parse(pwsL10n.password_blacklist);
-
-function checkPasswordStrength( 
-	password_field_1,
-    password_field_2,
-    strength_result,
-    submit_button,
-    blacklistArray
-	 ) {
-
-    var password_field_1 = password_field_1.val();
-    var password_field_2 = password_field_2.val();
- 
-    // Reset the form & meter
-    submit_button.attr( 'disabled', true );
-	strength_result.removeClass( 'short bad good strong' );
- 
-    // Get the password strength
-    var strength = wp.passwordStrength.meter( password_field_1, blacklistArray, password_field_2 );
- 
-    // Add the strength meter results
-    switch ( strength ) {
-        case 2:
-            strength_result.addClass( 'bad' ).html( pwsL10n.bad );
-            jQuery(".pmprosp-progressbar-status").css("width", 50 + "%");
-            break;
-
-        case 3:
-            strength_result.addClass( 'good' ).html( pwsL10n.good );
-            jQuery(".pmprosp-progressbar-status").css("width", 70 + "%");
-            break;
- 
-        case 4:
-            strength_result.addClass( 'strong' ).html( pwsL10n.strong );
-            jQuery(".pmprosp-progressbar-status").css("width", 100 + "%");
-            break;
- 
-        case 5:
-            strength_result.addClass( 'short' ).html( pwsL10n.mismatch );
-            jQuery(".pmprosp-progressbar-status").css("width", 20 + "%");
-            break;
- 
-        default:
-            strength_result.addClass( 'short' ).html( pwsL10n.short );
-            jQuery(".pmprosp-progressbar-status").css("width", 20 + "%");
-
-    }
-
-     // hide the password strength.
-     if ( password_field_1 === '' ) {
-        strength_result.removeClass( 'short bad good strong' );
-        jQuery(".pmprosp-progressbar-status").css("width", 0 + "%");
-    }
- 
-    // The meter function returns a result even if password_field_2 is empty,
-    // enable only the submit button if the password is strong and
-    // both passwords are filled up
-    if ( pwsL10n.allow_weak == 1 && '' !== password_field_2.trim() && 5 != strength ) {
-        submit_button.removeAttr( 'disabled' );
-    } else if ( 4 == strength && '' !== password_field_2.trim() ) {
-        submit_button.removeAttr( 'disabled' );
-    }
-    return strength;
-}
- 
-jQuery( document ).ready( function( $ ) {
-
-    // Move the message and bar to just below the PMPro password 1 field.
+    // Move the stong password container to just below the PMPro password 1 field.
     jQuery('#pmprosp-container').insertAfter('.pmpro_checkout-field-password');
-
 
     // Show strength progressbar depending on filter
     if ( pwsL10n.display_progressbar ) {
-        
+        // Add progressbar element to page
         jQuery('#pmprosp-container').append('<div class="pmprosp-progressbar"><span class="pmprosp-progressbar-status"></span></div>');
-
-        function adjust_progressbar_width(){
-
-            var pmpro_progressbar__width = Math.round( jQuery('.pmpro_form input[name=password]').outerWidth() );
-            jQuery( '.pmprosp-progressbar' ).css( 'width', pmpro_progressbar__width + 'px' );
-    
-            var pmpro_progressbar__boxshadow_width = pmpro_progressbar__width + 20;
-            jQuery( '.pmprosp-progressbar-status' ).css( 'box-shadow', pmpro_progressbar__boxshadow_width + 'px 0 0 ' + pmpro_progressbar__boxshadow_width + 'px ' + pwsL10n.progressbar_bg_color );
-        }
 
         adjust_progressbar_width();
 
-        // Set progressbar width to password field width
-        function resize_progressbar() {
-            adjust_progressbar_width();
-        };
-
         // On window resize reset width when resize has finished (debounce)
-        var doit;
+        var do_debounce;
         window.onresize = function(){
-        clearTimeout(doit);
-        doit = setTimeout(resize_progressbar, 100);
+        clearTimeout(do_debounce);
+        do_debounce = setTimeout(adjust_progressbar_width, 100);
         };
     }
 
@@ -118,25 +26,102 @@ jQuery( document ).ready( function( $ ) {
     if ( pwsL10n.display_password_tooltip ) {
         jQuery('.pmpro_checkout-field-password label').append('<span class="pmprosp-tooltip__password" data-tooltip-location="right" data-tooltip="' + pwsL10n.password_tooltip + '">?</span>');
     }
-    
+
     // Show password strength pill depending on filter
     if ( pwsL10n.display_password_strength ) {
         jQuery('.pmpro_checkout-field-password label').append('<span id="pmprosp-password-strength"></span>');
     }
-
-    // add disabled attribute to submit button on page load.
-    jQuery('#pmpro_btn-submit').attr('disabled', true);
     
-    // Binding to trigger checkPasswordStrength
-    jQuery( 'body' ).on( 'keyup', 'input[name=password], input[name=password2]',
-        function( event ) {
-            checkPasswordStrength(
-                jQuery('.pmpro_form input[name=password]'),         // First password field
-                jQuery('.pmpro_form input[name=password2]'), // Second password field
-                jQuery('.pmpro_form #pmprosp-password-strength'),           // Strength meter
-                jQuery('.pmpro_form #pmpro_btn-submit'),           // Submit button
-                pmprosp_password_blacklist        // Blacklisted words
-            );
+    // Check if password is strong or not.
+    if ( jQuery( '#password' ) ) {
+		pmpro_check_password_strength( jQuery( '#password' ) );
+		jQuery( '#password' ).bind( 'keyup paste', function() {
+			pmpro_check_password_strength( jQuery( '#password' ) );
+		});
+    }
+
+    // Check if confirm password is strong or not and delay check slightly.
+    if ( jQuery( '#password2' ) ) {
+        jQuery( '#password2' ).bind( 'keyup paste', function() {
+		    setTimeout( function() { pmpro_check_second_password( jQuery('#password'), jQuery('#password2') ) }, 2000 );
+		});
+    }
+
+
+
+    /**
+     * Function to check if password is strong.
+     */
+    function pmpro_check_password_strength( pass_field ) {
+		var pass1 = jQuery( pass_field ).val();		
+		var indicator = jQuery( '.pmpro_form #pmprosp-password-strength' );		
+		
+		var strength;		
+		if ( pass1 != '' ) {
+            
+            // Support Disallowed list for WP 5.5+
+            if ( typeof( wp.passwordStrength.userInputDisallowedList ) !== 'undefined' ) { 
+                strength = wp.passwordStrength.meter( pass1, wp.passwordStrength.userInputDisallowedList(), pass1 );
+            } else { 
+                strength = wp.passwordStrength.meter( pass1, wp.passwordStrength.userInputBlacklist(), pass1 );
+            }
+			
+		} else {
+			strength = -1;
+		}
+
+		indicator.removeClass( 'empty bad good strong short' );
+
+		switch ( strength ) {
+			case -1:
+                indicator.addClass( 'empty' ).html( '&nbsp;' );
+                jQuery(".pmprosp-progressbar-status").css("width", 0 + "%");
+				break;
+			case 2:
+				indicator.addClass( 'bad' ).html( pwsL10n.bad );
+				jQuery(".pmprosp-progressbar-status").css("width", 50 + "%");
+				break;
+			case 3:
+                indicator.addClass( 'good' ).html( pwsL10n.good );
+                jQuery(".pmprosp-progressbar-status").css("width", 70 + "%");
+				break;
+			case 4:
+                indicator.addClass( 'strong' ).html( pwsL10n.strong );
+                jQuery(".pmprosp-progressbar-status").css("width", 100 + "%");
+				break;
+			case 5:
+                indicator.addClass( 'short' ).html( pwsL10n.mismatch );
+                jQuery(".pmprosp-progressbar-status").css("width", 50 + "%");
+				break;
+			default:
+                indicator.addClass( 'short' ).html( pwsL10n['short'] );
+		}
+    }
+
+    /**
+     * Check confirm password is matching.
+     */
+    function pmpro_check_second_password( pass_1, pass_2 ) {
+        var indicator = jQuery( '.pmpro_form #pmprosp-password-strength' );		
+        
+        if ( pass_1.val() == pass_2.val() ) {
+            pmpro_check_password_strength( pass_1 );
+        } else {
+            indicator.addClass( 'short' ).html( pwsL10n.mismatch );
         }
-    );
+    }
+     /**
+      * Function to adjust progress bar
+      */
+     function adjust_progressbar_width(){
+
+        // Get width of password input field and set progressbar width
+        var pmpro_progressbar__width = Math.round( jQuery('.pmpro_form input[name=password]').outerWidth() );
+        jQuery( '.pmprosp-progressbar' ).css( 'width', pmpro_progressbar__width + 'px' );
+
+        // box-shadow width must be greater than progressbar width
+        var pmpro_progressbar__boxshadow_width = pmpro_progressbar__width + 20;
+        jQuery( '.pmprosp-progressbar-status' ).css( 'box-shadow', pmpro_progressbar__boxshadow_width + 'px 0 0 ' + pmpro_progressbar__boxshadow_width + 'px ' + pwsL10n.progressbar_bg_color );
+    }
+
 });
